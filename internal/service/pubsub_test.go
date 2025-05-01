@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/magiconair/properties/assert"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 )
@@ -25,14 +25,14 @@ func TestSubPub(t *testing.T) {
 
 	sub1, err := subPub.Subscribe("subject1", func(msg any) {
 		atomic.AddInt64(&counter, 1)
-		assert.Equal(t, msg, "value")
+		assert.Equal(t, "value", msg)
 	})
 	require.NoError(t, err)
 	defer sub1.Unsubscribe()
 
 	sub2, err := subPub.Subscribe("subject2", func(msg any) {
 		atomic.AddInt64(&counter, 1)
-		assert.Equal(t, msg, "value")
+		assert.Equal(t, "value", msg)
 	})
 	require.NoError(t, err)
 	defer sub2.Unsubscribe()
@@ -45,7 +45,7 @@ func TestSubPub(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	assert.Equal(t, atomic.LoadInt64(&counter), int64(2))
+	assert.Equal(t, int64(2), atomic.LoadInt64(&counter))
 }
 
 func TestSubPubUnsubscribe(t *testing.T) {
@@ -74,7 +74,7 @@ func TestSubPubUnsubscribe(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	assert.Equal(t, atomic.LoadInt64(&counter), int64(1))
+	assert.Equal(t, int64(1), atomic.LoadInt64(&counter))
 }
 
 func TestSubPubClose(t *testing.T) {
@@ -106,7 +106,7 @@ func TestSubPubClose(t *testing.T) {
 	})
 	require.ErrorIs(t, err, ErrSubPubAlreadyClosed)
 
-	assert.Equal(t, atomic.LoadInt64(&counter), int64(0))
+	assert.Equal(t, int64(0), atomic.LoadInt64(&counter))
 }
 
 // BenchmarkSubPub-11       1244530               935.0 ns/op           367 B/op          15 allocs/op

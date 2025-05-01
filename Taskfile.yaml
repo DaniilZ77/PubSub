@@ -21,3 +21,16 @@ tasks:
   clean:
     cmds:
       - rm -rf ./bin
+  docker-build:
+    cmds:
+      - docker build -t pubsub:latest .
+  docker-run:
+    vars:
+      CPUS: "2"
+      PORT: 50051
+      CONFIG_DIR: ./config
+    cmds:
+      - docker run --rm --cpus={{.CPUS}} -p {{.PORT}}:{{.PORT}} -v {{.CONFIG_DIR}}:/app/config -e CONFIG_PATH=./config/local.yaml pubsub:latest
+  gen-mocks:
+    cmds:
+      - go generate ./...

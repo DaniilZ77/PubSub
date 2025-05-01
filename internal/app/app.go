@@ -93,7 +93,7 @@ func (a *App) Run() error {
 func (a *App) Close(ctx context.Context) {
 	a.server.GracefulStop()
 	if err := a.pubSubService.Close(ctx); err != nil {
-		a.log.Error("failed to close pub sub", slog.Any("error", err))
+		a.log.Info("closed pub sub", slog.Any("error", err))
 	}
 }
 

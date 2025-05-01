@@ -11,6 +11,7 @@ import (
 
 	"github.com/DaniilZ77/vk-task/internal/app"
 	"github.com/DaniilZ77/vk-task/internal/config"
+	_ "go.uber.org/automaxprocs"
 )
 
 func main() {

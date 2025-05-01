@@ -18,23 +18,6 @@ const (
 	defaultSendTimeout = 500 * time.Millisecond
 )
 
-var (
-	ErrSubPubAlreadyClosed = errors.New("sub pub already closed")
-	ErrFailedToPublish     = errors.New("failed to publish message")
-)
-
-type MessageHandler func(msg any)
-
-type Subscription interface {
-	Unsubscribe()
-}
-
-type SubPub interface {
-	Subscribe(subject string, cb MessageHandler) (Subscription, error)
-	Publish(subject string, msg any) error
-	Close(ctx context.Context) error
-}
-
 type subPubImpl struct {
 	wg          sync.WaitGroup
 	queueSize   int
@@ -98,7 +81,7 @@ func (s *subPubImpl) Close(ctx context.Context) error {
 
 	select {
 	case <-done:
-		s.log.Info("sub pub closed")
+		s.log.Info("pub sub closed")
 	case <-ctx.Done():
 		s.log.Warn("context cancelled")
 		return ctx.Err()
