@@ -1,0 +1,23 @@
+# https://taskfile.dev
+
+version: '3'
+
+tasks:
+  gen-protos:
+    cmds:
+      - protoc -I protos protos/*.proto --go_out=./protos --go_opt=paths=source_relative --go-grpc_out=./protos --go-grpc_opt=paths=source_relative
+  run:
+    cmds:
+      - CONFIG_PATH=config/local.yaml go run ./cmd
+  build:
+    cmds:
+      - go build -o ./bin/pubsub ./cmd
+  lint:
+    cmds:
+      - golangci-lint run
+  test:
+    cmds:
+      - go test -short -race -count=1 -timeout 30s ./...
+  clean:
+    cmds:
+      - rm -rf ./bin
