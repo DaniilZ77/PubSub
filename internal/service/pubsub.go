@@ -19,18 +19,16 @@ const (
 )
 
 type subPubImpl struct {
-	wg          sync.WaitGroup
-	queueSize   int
-	sendTimeout time.Duration
-	mutex       sync.RWMutex
-	data        map[string][]*subscriptionImpl
-	closed      int32
-	log         *slog.Logger
+	wg        sync.WaitGroup
+	queueSize int
+	mutex     sync.RWMutex
+	data      map[string][]*subscriptionImpl
+	closed    int32
+	log       *slog.Logger
 }
 
 type subscriptionImpl struct {
 	messages     chan any
-	sendTimeout  time.Duration
 	mutex        sync.RWMutex
 	unsubscribed bool
 	log          *slog.Logger
@@ -53,7 +51,7 @@ func (s *subscriptionImpl) send(msg any) {
 		}
 		select {
 		case s.messages <- msg:
-		case <-time.After(s.sendTimeout):
+		default:
 			s.log.Warn("failed to publish message", slog.Any("message", msg))
 		}
 	})
@@ -110,9 +108,8 @@ func (s *subPubImpl) Subscribe(subject string, cb MessageHandler) (Subscription,
 	}
 
 	subscription := &subscriptionImpl{
-		messages:    make(chan any, s.queueSize),
-		sendTimeout: s.sendTimeout,
-		log:         s.log,
+		messages: make(chan any, s.queueSize),
+		log:      s.log,
 	}
 	var err error
 	common.WithLock(&s.mutex, func() {
@@ -137,21 +134,17 @@ func (s *subPubImpl) Subscribe(subject string, cb MessageHandler) (Subscription,
 	return subscription, nil
 }
 
-func NewSubPub(queueSize int, sendTimeout time.Duration, log *slog.Logger) (SubPub, error) {
+func NewSubPub(queueSize int, log *slog.Logger) (SubPub, error) {
 	if queueSize <= 0 {
 		queueSize = defaultQueueSize
 	}
 	if log == nil {
 		return nil, errors.New("logger cannot be nil")
 	}
-	if sendTimeout <= 0 {
-		sendTimeout = defaultSendTimeout
-	}
 
 	return &subPubImpl{
-		data:        make(map[string][]*subscriptionImpl),
-		queueSize:   queueSize,
-		sendTimeout: sendTimeout,
-		log:         log,
+		data:      make(map[string][]*subscriptionImpl),
+		queueSize: queueSize,
+		log:       log,
 	}, nil
 }

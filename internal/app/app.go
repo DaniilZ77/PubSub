@@ -33,7 +33,7 @@ func NewApp(config *config.Config, log *slog.Logger) (*App, error) {
 		return nil, errors.New("logger cannot be nil")
 	}
 
-	pubSubService, err := service.NewSubPub(config.QueueSize, config.SendTimeout, log)
+	pubSubService, err := service.NewSubPub(config.QueueSize, log)
 	if err != nil {
 		return nil, err
 	}

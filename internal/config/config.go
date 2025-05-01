@@ -3,16 +3,14 @@ package config
 import (
 	"flag"
 	"os"
-	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
-	GrpcPort    string        `yaml:"grpc_port"`
-	QueueSize   int           `yaml:"queue_size"`
-	LogLevel    string        `yaml:"log_level"`
-	SendTimeout time.Duration `yaml:"send_timeout"`
+	GrpcPort  string `yaml:"grpc_port"`
+	QueueSize int    `yaml:"queue_size"`
+	LogLevel  string `yaml:"log_level"`
 }
 
 func ReadConfig() (*Config, error) {

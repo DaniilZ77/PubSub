@@ -17,7 +17,7 @@ import (
 func TestSubPub(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	subPub, err := NewSubPub(256, 0, slog.New(slog.DiscardHandler))
+	subPub, err := NewSubPub(256, slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
 	defer subPub.Close(context.Background()) // nolint
 
@@ -51,7 +51,7 @@ func TestSubPub(t *testing.T) {
 func TestSubPubUnsubscribe(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	subPub, err := NewSubPub(256, 0, slog.New(slog.DiscardHandler))
+	subPub, err := NewSubPub(256, slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
 	defer subPub.Close(context.Background()) // nolint
 
@@ -80,7 +80,7 @@ func TestSubPubUnsubscribe(t *testing.T) {
 func TestSubPubClose(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	subPub, err := NewSubPub(256, 0, slog.New(slog.DiscardHandler))
+	subPub, err := NewSubPub(256, slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
 	defer subPub.Close(context.Background()) // nolint
 
@@ -111,7 +111,7 @@ func TestSubPubClose(t *testing.T) {
 
 // BenchmarkSubPub-11       1244530               935.0 ns/op           367 B/op          15 allocs/op
 func BenchmarkSubPub(b *testing.B) {
-	subPub, _ := NewSubPub(256, 0, slog.New(slog.DiscardHandler))
+	subPub, _ := NewSubPub(256, slog.New(slog.DiscardHandler))
 	defer subPub.Close(context.Background()) // nolint
 	const workers = 10
 	wg := sync.WaitGroup{}
