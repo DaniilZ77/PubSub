@@ -6,16 +6,14 @@ import (
 	"log/slog"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/DaniilZ77/vk-task/internal/common"
 )
 
 const (
-	opened             = 0
-	closed             = 1
-	defaultQueueSize   = 256
-	defaultSendTimeout = 500 * time.Millisecond
+	opened           = 0
+	closed           = 1
+	defaultQueueSize = 256
 )
 
 type subPubImpl struct {
@@ -29,9 +27,43 @@ type subPubImpl struct {
 
 type subscriptionImpl struct {
 	messages     chan any
+	stream       chan any
+	buffer       []any
 	mutex        sync.RWMutex
 	unsubscribed bool
 	log          *slog.Logger
+}
+
+func (s *subscriptionImpl) start() {
+	defer close(s.stream)
+	var msg any
+	var ok bool
+	for {
+		if len(s.buffer) > 0 {
+			msg = s.buffer[0]
+		} else {
+			msg, ok = <-s.messages
+			if !ok {
+				s.log.Info("subscription closed")
+				return
+			}
+			s.buffer = append(s.buffer, msg)
+		}
+
+		select {
+		case msg, ok = <-s.messages:
+			if !ok {
+				for _, msg := range s.buffer {
+					s.stream <- msg
+				}
+				s.log.Info("subscription closed")
+				return
+			}
+			s.buffer = append(s.buffer, msg)
+		case s.stream <- msg:
+			s.buffer = s.buffer[1:]
+		}
+	}
 }
 
 func (s *subscriptionImpl) Unsubscribe() {
@@ -49,11 +81,7 @@ func (s *subscriptionImpl) send(msg any) {
 		if s.unsubscribed {
 			return
 		}
-		select {
-		case s.messages <- msg:
-		default:
-			s.log.Warn("failed to publish message", slog.Any("message", msg))
-		}
+		s.messages <- msg
 	})
 }
 
@@ -109,6 +137,7 @@ func (s *subPubImpl) Subscribe(subject string, cb MessageHandler) (Subscription,
 
 	subscription := &subscriptionImpl{
 		messages: make(chan any, s.queueSize),
+		stream:   make(chan any),
 		log:      s.log,
 	}
 	var err error
@@ -123,10 +152,14 @@ func (s *subPubImpl) Subscribe(subject string, cb MessageHandler) (Subscription,
 		return nil, err
 	}
 
-	s.wg.Add(1)
+	s.wg.Add(2)
 	go func() {
 		defer s.wg.Done()
-		for msg := range subscription.messages {
+		subscription.start()
+	}()
+	go func() {
+		defer s.wg.Done()
+		for msg := range subscription.stream {
 			cb(msg)
 		}
 	}()
