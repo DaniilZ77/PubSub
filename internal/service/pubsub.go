@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log/slog"
 	"sync"
-	"sync/atomic"
 
 	"github.com/DaniilZ77/vk-task/internal/common"
 )
@@ -21,7 +20,7 @@ type subPubImpl struct {
 	queueSize int
 	mutex     sync.RWMutex
 	data      map[string][]*subscriptionImpl
-	closed    int32
+	closed    bool
 	log       *slog.Logger
 }
 
@@ -85,19 +84,22 @@ func (s *subscriptionImpl) send(msg any) {
 	})
 }
 
-func (s *subPubImpl) Close(ctx context.Context) error {
-	if !atomic.CompareAndSwapInt32(&s.closed, opened, closed) {
-		return ErrSubPubAlreadyClosed
-	}
-
+func (s *subPubImpl) Close(ctx context.Context) (err error) {
 	common.WithLock(&s.mutex, func() {
+		if s.closed {
+			err = ErrSubPubAlreadyClosed
+			return
+		}
 		for _, subscriptions := range s.data {
 			for _, subscription := range subscriptions {
 				subscription.Unsubscribe()
 			}
 		}
-		s.data = nil
+		s.closed = true
 	})
+	if err != nil {
+		return err
+	}
 
 	done := make(chan struct{})
 	go func() {
@@ -116,25 +118,21 @@ func (s *subPubImpl) Close(ctx context.Context) error {
 	return nil
 }
 
-func (s *subPubImpl) Publish(subject string, msg any) error {
-	if atomic.LoadInt32(&s.closed) == closed {
-		return ErrSubPubAlreadyClosed
-	}
-
+func (s *subPubImpl) Publish(subject string, msg any) (err error) {
 	common.WithLock(s.mutex.RLocker(), func() {
+		if s.closed {
+			err = ErrSubPubAlreadyClosed
+			return
+		}
 		for _, subscription := range s.data[subject] {
 			subscription.send(msg)
 		}
 	})
 
-	return nil
+	return err
 }
 
 func (s *subPubImpl) Subscribe(subject string, cb MessageHandler) (Subscription, error) {
-	if atomic.LoadInt32(&s.closed) == closed {
-		return nil, ErrSubPubAlreadyClosed
-	}
-
 	subscription := &subscriptionImpl{
 		messages: make(chan any, s.queueSize),
 		stream:   make(chan any),
@@ -142,7 +140,7 @@ func (s *subPubImpl) Subscribe(subject string, cb MessageHandler) (Subscription,
 	}
 	var err error
 	common.WithLock(&s.mutex, func() {
-		if s.data == nil {
+		if s.closed {
 			err = ErrSubPubAlreadyClosed
 			return
 		}

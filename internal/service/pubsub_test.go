@@ -150,7 +150,7 @@ func TestPubSubStress(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 }
 
-// BenchmarkSubPub-11       1244530               935.0 ns/op           367 B/op          15 allocs/op
+// BenchmarkSubPub-11       1042448              1165 ns/op             852 B/op           9 allocs/op
 func BenchmarkSubPub(b *testing.B) {
 	subPub, _ := NewSubPub(256, slog.New(slog.DiscardHandler))
 	defer subPub.Close(context.Background()) // nolint
