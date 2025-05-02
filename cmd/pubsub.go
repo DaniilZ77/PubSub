@@ -34,6 +34,10 @@ func main() {
 }
 
 func newLogger(logLevel string) *slog.Logger {
+	if logLevel == "" {
+		logLevel = "INFO"
+	}
+
 	var log *slog.Logger
 
 	opts := &slog.HandlerOptions{AddSource: true}

@@ -109,7 +109,48 @@ func TestSubPubClose(t *testing.T) {
 	assert.Equal(t, int64(0), atomic.LoadInt64(&counter))
 }
 
-// BenchmarkSubPub-11       1244530               935.0 ns/op           367 B/op          15 allocs/op
+func TestPubSubStress(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	subPub, err := NewSubPub(256, slog.New(slog.DiscardHandler))
+	require.NoError(t, err)
+
+	const (
+		workers    = 100
+		iterations = 1000
+	)
+	var counter int64
+	defer func() {
+		assert.Equal(t, int64(iterations*workers), atomic.LoadInt64(&counter))
+	}()
+
+	defer subPub.Close(context.Background()) // nolint
+	wg := sync.WaitGroup{}
+	wg.Add(workers)
+	for worker := range workers {
+		subject := "subject" + strconv.Itoa(worker)
+		sub, err := subPub.Subscribe(subject, func(msg any) {
+			atomic.AddInt64(&counter, 1)
+			id, ok := msg.(int)
+			if assert.True(t, ok) {
+				assert.Equal(t, worker, id)
+			}
+		})
+		require.NoError(t, err)
+		defer sub.Unsubscribe()
+		go func() {
+			defer wg.Done()
+			for range iterations {
+				err = subPub.Publish(subject, worker)
+				require.NoError(t, err)
+			}
+		}()
+	}
+	wg.Wait()
+	time.Sleep(100 * time.Millisecond)
+}
+
+// BenchmarkSubPub-11       1042448              1165 ns/op             852 B/op           9 allocs/op
 func BenchmarkSubPub(b *testing.B) {
 	subPub, _ := NewSubPub(256, slog.New(slog.DiscardHandler))
 	defer subPub.Close(context.Background()) // nolint

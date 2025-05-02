@@ -5,17 +5,12 @@ import (
 	"errors"
 	"log/slog"
 	"sync"
-	"sync/atomic"
-	"time"
-
-	"github.com/DaniilZ77/vk-task/internal/common"
 )
 
 const (
-	opened             = 0
-	closed             = 1
-	defaultQueueSize   = 256
-	defaultSendTimeout = 500 * time.Millisecond
+	opened           = 0
+	closed           = 1
+	defaultQueueSize = 256
 )
 
 type subPubImpl struct {
@@ -23,53 +18,86 @@ type subPubImpl struct {
 	queueSize int
 	mutex     sync.RWMutex
 	data      map[string][]*subscriptionImpl
-	closed    int32
+	closed    bool
 	log       *slog.Logger
 }
 
 type subscriptionImpl struct {
 	messages     chan any
+	stream       chan any
+	buffer       []any
 	mutex        sync.RWMutex
 	unsubscribed bool
 	log          *slog.Logger
 }
 
-func (s *subscriptionImpl) Unsubscribe() {
-	common.WithLock(&s.mutex, func() {
-		if s.unsubscribed {
-			return
+func (s *subscriptionImpl) start() {
+	defer close(s.stream)
+	var msg any
+	var ok bool
+	for {
+		if len(s.buffer) > 0 {
+			msg = s.buffer[0]
+		} else {
+			msg, ok = <-s.messages
+			if !ok {
+				s.log.Info("subscription closed")
+				return
+			}
+			s.buffer = append(s.buffer, msg)
 		}
-		s.unsubscribed = true
-		close(s.messages)
-	})
+
+		select {
+		case msg, ok = <-s.messages:
+			if !ok {
+				for _, msg := range s.buffer {
+					s.stream <- msg
+				}
+				s.log.Info("subscription closed")
+				return
+			}
+			s.buffer = append(s.buffer, msg)
+		case s.stream <- msg:
+			s.buffer = s.buffer[1:]
+		}
+	}
+}
+
+func (s *subscriptionImpl) Unsubscribe() {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if s.unsubscribed {
+		return
+	}
+	s.unsubscribed = true
+	close(s.messages)
 }
 
 func (s *subscriptionImpl) send(msg any) {
-	common.WithLock(s.mutex.RLocker(), func() {
-		if s.unsubscribed {
-			return
-		}
-		select {
-		case s.messages <- msg:
-		default:
-			s.log.Warn("failed to publish message", slog.Any("message", msg))
-		}
-	})
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if s.unsubscribed {
+		return
+	}
+	s.messages <- msg
 }
 
-func (s *subPubImpl) Close(ctx context.Context) error {
-	if !atomic.CompareAndSwapInt32(&s.closed, opened, closed) {
-		return ErrSubPubAlreadyClosed
-	}
-
-	common.WithLock(&s.mutex, func() {
+func (s *subPubImpl) Close(ctx context.Context) (err error) {
+	withLock(&s.mutex, func() {
+		if s.closed {
+			err = ErrSubPubAlreadyClosed
+			return
+		}
 		for _, subscriptions := range s.data {
 			for _, subscription := range subscriptions {
 				subscription.Unsubscribe()
 			}
 		}
-		s.data = nil
+		s.closed = true
 	})
+	if err != nil {
+		return err
+	}
 
 	done := make(chan struct{})
 	go func() {
@@ -88,32 +116,27 @@ func (s *subPubImpl) Close(ctx context.Context) error {
 	return nil
 }
 
-func (s *subPubImpl) Publish(subject string, msg any) error {
-	if atomic.LoadInt32(&s.closed) == closed {
+func (s *subPubImpl) Publish(subject string, msg any) (err error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if s.closed {
 		return ErrSubPubAlreadyClosed
 	}
-
-	common.WithLock(s.mutex.RLocker(), func() {
-		for _, subscription := range s.data[subject] {
-			subscription.send(msg)
-		}
-	})
-
+	for _, subscription := range s.data[subject] {
+		subscription.send(msg)
+	}
 	return nil
 }
 
 func (s *subPubImpl) Subscribe(subject string, cb MessageHandler) (Subscription, error) {
-	if atomic.LoadInt32(&s.closed) == closed {
-		return nil, ErrSubPubAlreadyClosed
-	}
-
 	subscription := &subscriptionImpl{
 		messages: make(chan any, s.queueSize),
+		stream:   make(chan any),
 		log:      s.log,
 	}
 	var err error
-	common.WithLock(&s.mutex, func() {
-		if s.data == nil {
+	withLock(&s.mutex, func() {
+		if s.closed {
 			err = ErrSubPubAlreadyClosed
 			return
 		}
@@ -123,10 +146,14 @@ func (s *subPubImpl) Subscribe(subject string, cb MessageHandler) (Subscription,
 		return nil, err
 	}
 
-	s.wg.Add(1)
+	s.wg.Add(2)
 	go func() {
 		defer s.wg.Done()
-		for msg := range subscription.messages {
+		subscription.start()
+	}()
+	go func() {
+		defer s.wg.Done()
+		for msg := range subscription.stream {
 			cb(msg)
 		}
 	}()
