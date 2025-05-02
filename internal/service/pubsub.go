@@ -64,22 +64,22 @@ func (s *subscriptionImpl) start() {
 }
 
 func (s *subscriptionImpl) Unsubscribe() {
-	withLock(&s.mutex, func() {
-		if s.unsubscribed {
-			return
-		}
-		s.unsubscribed = true
-		close(s.messages)
-	})
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if s.unsubscribed {
+		return
+	}
+	s.unsubscribed = true
+	close(s.messages)
 }
 
 func (s *subscriptionImpl) send(msg any) {
-	withLock(s.mutex.RLocker(), func() {
-		if s.unsubscribed {
-			return
-		}
-		s.messages <- msg
-	})
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if s.unsubscribed {
+		return
+	}
+	s.messages <- msg
 }
 
 func (s *subPubImpl) Close(ctx context.Context) (err error) {
@@ -117,17 +117,15 @@ func (s *subPubImpl) Close(ctx context.Context) (err error) {
 }
 
 func (s *subPubImpl) Publish(subject string, msg any) (err error) {
-	withLock(s.mutex.RLocker(), func() {
-		if s.closed {
-			err = ErrSubPubAlreadyClosed
-			return
-		}
-		for _, subscription := range s.data[subject] {
-			subscription.send(msg)
-		}
-	})
-
-	return err
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if s.closed {
+		return ErrSubPubAlreadyClosed
+	}
+	for _, subscription := range s.data[subject] {
+		subscription.send(msg)
+	}
+	return nil
 }
 
 func (s *subPubImpl) Subscribe(subject string, cb MessageHandler) (Subscription, error) {
