@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"net"
 
-	"github.com/DaniilZ77/vk-task/internal/config"
-	pubSubGrpc "github.com/DaniilZ77/vk-task/internal/grpc"
-	"github.com/DaniilZ77/vk-task/internal/service"
+	"github.com/DaniilZ77/PubSub/internal/config"
+	pubSubGrpc "github.com/DaniilZ77/PubSub/internal/grpc"
+	"github.com/DaniilZ77/PubSub/internal/service"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 

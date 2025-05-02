@@ -4,8 +4,8 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/DaniilZ77/vk-task/internal/service"
-	pubsub "github.com/DaniilZ77/vk-task/protos"
+	"github.com/DaniilZ77/PubSub/internal/service"
+	pubsub "github.com/DaniilZ77/PubSub/protos"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

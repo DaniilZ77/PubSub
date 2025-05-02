@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/DaniilZ77/vk-task/internal/app"
-	"github.com/DaniilZ77/vk-task/internal/config"
+	"github.com/DaniilZ77/PubSub/internal/app"
+	"github.com/DaniilZ77/PubSub/internal/config"
 	_ "go.uber.org/automaxprocs"
 )
 

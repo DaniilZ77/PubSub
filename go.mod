@@ -1,4 +1,4 @@
-module github.com/DaniilZ77/vk-task
+module github.com/DaniilZ77/PubSub
 
 go 1.24.2
 
