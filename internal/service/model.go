@@ -7,7 +7,6 @@ import (
 
 var (
 	ErrSubPubAlreadyClosed = errors.New("sub pub already closed")
-	ErrFailedToPublish     = errors.New("failed to publish message")
 )
 
 type MessageHandler func(msg any)

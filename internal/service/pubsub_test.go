@@ -25,22 +25,22 @@ func TestSubPub(t *testing.T) {
 
 	sub1, err := subPub.Subscribe("subject1", func(msg any) {
 		atomic.AddInt64(&counter, 1)
-		assert.Equal(t, "value", msg)
+		assert.Equal(t, "value1", msg)
 	})
 	require.NoError(t, err)
 	defer sub1.Unsubscribe()
 
 	sub2, err := subPub.Subscribe("subject2", func(msg any) {
 		atomic.AddInt64(&counter, 1)
-		assert.Equal(t, "value", msg)
+		assert.Equal(t, "value2", msg)
 	})
 	require.NoError(t, err)
 	defer sub2.Unsubscribe()
 
-	err = subPub.Publish("subject1", "value")
+	err = subPub.Publish("subject1", "value1")
 	require.NoError(t, err)
 
-	err = subPub.Publish("subject2", "value")
+	err = subPub.Publish("subject2", "value2")
 	require.NoError(t, err)
 
 	time.Sleep(100 * time.Millisecond)

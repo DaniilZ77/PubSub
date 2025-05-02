@@ -55,7 +55,7 @@ func newLogger(logLevel string) *slog.Logger {
 		opts.Level = slog.LevelWarn
 		log = slog.New(slog.NewJSONHandler(os.Stdout, opts))
 	default:
-		panic("unknown env")
+		panic("unknown log level")
 	}
 
 	return log
