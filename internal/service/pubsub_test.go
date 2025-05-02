@@ -124,7 +124,7 @@ func TestPubSubStress(t *testing.T) {
 		assert.Equal(t, int64(iterations*workers), atomic.LoadInt64(&counter))
 	}()
 
-	defer subPub.Close(context.Background())
+	defer subPub.Close(context.Background()) // nolint
 	wg := sync.WaitGroup{}
 	wg.Add(workers)
 	for worker := range workers {
