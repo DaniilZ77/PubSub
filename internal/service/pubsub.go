@@ -5,8 +5,6 @@ import (
 	"errors"
 	"log/slog"
 	"sync"
-
-	"github.com/DaniilZ77/vk-task/internal/common"
 )
 
 const (
@@ -66,7 +64,7 @@ func (s *subscriptionImpl) start() {
 }
 
 func (s *subscriptionImpl) Unsubscribe() {
-	common.WithLock(&s.mutex, func() {
+	withLock(&s.mutex, func() {
 		if s.unsubscribed {
 			return
 		}
@@ -76,7 +74,7 @@ func (s *subscriptionImpl) Unsubscribe() {
 }
 
 func (s *subscriptionImpl) send(msg any) {
-	common.WithLock(s.mutex.RLocker(), func() {
+	withLock(s.mutex.RLocker(), func() {
 		if s.unsubscribed {
 			return
 		}
@@ -85,7 +83,7 @@ func (s *subscriptionImpl) send(msg any) {
 }
 
 func (s *subPubImpl) Close(ctx context.Context) (err error) {
-	common.WithLock(&s.mutex, func() {
+	withLock(&s.mutex, func() {
 		if s.closed {
 			err = ErrSubPubAlreadyClosed
 			return
@@ -119,7 +117,7 @@ func (s *subPubImpl) Close(ctx context.Context) (err error) {
 }
 
 func (s *subPubImpl) Publish(subject string, msg any) (err error) {
-	common.WithLock(s.mutex.RLocker(), func() {
+	withLock(s.mutex.RLocker(), func() {
 		if s.closed {
 			err = ErrSubPubAlreadyClosed
 			return
@@ -139,7 +137,7 @@ func (s *subPubImpl) Subscribe(subject string, cb MessageHandler) (Subscription,
 		log:      s.log,
 	}
 	var err error
-	common.WithLock(&s.mutex, func() {
+	withLock(&s.mutex, func() {
 		if s.closed {
 			err = ErrSubPubAlreadyClosed
 			return

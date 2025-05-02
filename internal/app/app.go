@@ -25,12 +25,18 @@ type App struct {
 	log           *slog.Logger
 }
 
+const defaultGrpcPort = ":50051"
+
 func NewApp(config *config.Config, log *slog.Logger) (*App, error) {
 	if config == nil {
 		return nil, errors.New("config cannot be nil")
 	}
 	if log == nil {
 		return nil, errors.New("logger cannot be nil")
+	}
+
+	if config.GrpcPort == "" {
+		config.GrpcPort = defaultGrpcPort
 	}
 
 	pubSubService, err := service.NewSubPub(config.QueueSize, log)
